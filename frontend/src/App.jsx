@@ -2,36 +2,92 @@ import { useState, useEffect } from 'react'
 
 function App() {
   const [items, setItems] = useState([])
+  const [dashboardData, setDashboardData] = useState({
+    activeItemsCount: 0,
+    totalFavorites: 0,
+    totalSales: 0,
+    announcements: []
+  })
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [view, setView] = useState('list') // list, login, register, upload, admin
+  const [view, setView] = useState('home') // home, list, login, register, upload, dashboard
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    if (view === 'dashboard' && (isLoggedIn || localStorage.getItem('auth'))) {
+      fetchDashboardData()
+    }
+  }, [view])
 
   useEffect(() => {
     fetchItems()
+    const storedAuth = localStorage.getItem('auth')
+    if (storedAuth) {
+      setIsLoggedIn(true)
+      // If we're already logged in, set view to dashboard and fetch data
+      setView('dashboard')
+    }
   }, [])
 
   const fetchItems = () => {
     fetch('/api/items/public/list')
       .then(res => res.json())
       .then(data => setItems(data))
+      .catch(err => console.error("Fetch error:", err))
+  }
+
+  const fetchDashboardData = () => {
+    const authHeader = localStorage.getItem('auth')
+    if (!authHeader) return
+
+    fetch('/api/dashboard/stats', {
+      headers: { 'Authorization': authHeader }
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch dashboard')
+        return res.json()
+      })
+      .then(data => {
+        // Ensure announcements is always an array
+        if (data && !data.announcements) data.announcements = []
+        setDashboardData(data)
+      })
+      .catch(err => {
+        console.error("Dashboard fetch error:", err)
+        // If unauthorized, might want to logout
+        if (err.message.includes('401')) {
+           localStorage.removeItem('auth')
+           setIsLoggedIn(false)
+           setView('login')
+        }
+      })
   }
 
   const handleLogin = (e) => {
     e.preventDefault()
-    // Using Basic Auth for simplicity in this prototype
-    const authHeader = 'Basic ' + btoa(username + ':' + password)
-    fetch('/api/auth/login-success', {
-      headers: { 'Authorization': authHeader }
-    }).then(res => {
-      if (res.ok) {
-        setIsLoggedIn(true)
-        localStorage.setItem('auth', authHeader)
-        setView('list')
-      } else {
-        alert('Login failed')
-      }
-    })
+    try {
+      // Use encodeURIComponent + unescape for UTF-8 support in btoa
+      const authHeader = 'Basic ' + btoa(unescape(encodeURIComponent(username + ':' + password)))
+      fetch('/api/auth/login-success', {
+        headers: { 'Authorization': authHeader }
+      }).then(res => {
+        if (res.ok) {
+          setIsLoggedIn(true)
+          localStorage.setItem('auth', authHeader)
+          localStorage.setItem('username', username)
+          setView('dashboard')
+        } else {
+          alert('Login failed: Invalid username or password')
+        }
+      }).catch(err => {
+        console.error("Login request error:", err)
+        alert('Network error or server is down')
+      })
+    } catch (err) {
+      console.error("Auth encoding error:", err)
+      alert('Login failed: Character encoding error')
+    }
   }
 
   const handleRegister = (e) => {
@@ -48,6 +104,14 @@ function App() {
         alert('Registration failed')
       }
     })
+  }
+
+  const handleBrowse = () => {
+    if (isLoggedIn || localStorage.getItem('auth')) {
+      setView('list')
+    } else {
+      setView('login')
+    }
   }
 
   const handleUpload = (e) => {
@@ -73,66 +137,194 @@ function App() {
   }
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>OldNewHub - Campus Trading</h1>
-      <nav style={{ marginBottom: '20px' }}>
-        <button onClick={() => setView('list')}>Browse</button>
-        {!isLoggedIn ? (
-          <>
-            <button onClick={() => setView('login')}>Login</button>
-            <button onClick={() => setView('register')}>Register</button>
-          </>
-        ) : (
-          <>
-            <button onClick={() => setView('upload')}>Upload Item</button>
-            <button onClick={() => { setIsLoggedIn(false); localStorage.removeItem('auth'); }}>Logout</button>
-          </>
+    <div className={`app-container ${(view === 'login' || view === 'register') ? 'auth-page' : ''}`}>
+      {/* Section 1: Navbar */}
+      <nav className={`nav-container ${(view === 'login' || view === 'register') ? 'nav-center' : ''}`}>
+        <div className="logo" onClick={() => setView('home')}>OldNewHub</div>
+        {!(view === 'login' || view === 'register') && (
+          <div className="nav-buttons">
+            {!isLoggedIn ? (
+              <>
+                <button className="btn-primary" onClick={() => setView('login')}>Login</button>
+                <button className="btn-primary" onClick={() => setView('register')}>Register</button>
+              </>
+            ) : (
+              <>
+                <button className="btn-outline" onClick={() => setView('upload')}>Upload</button>
+                <button className="btn-primary" onClick={() => { setIsLoggedIn(false); localStorage.removeItem('auth'); setView('home'); }}>Logout</button>
+              </>
+            )}
+          </div>
         )}
       </nav>
 
-      {view === 'list' && (
-        <div>
-          <h2>Available Items</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
-            {items.map(item => (
-              <div key={item.id} style={{ border: '1px solid #ccc', padding: '10px', borderRadius: '5px' }}>
-                <h3>{item.title}</h3>
-                <p>{item.description}</p>
-                <p><strong>Price: ¥{item.price}</strong></p>
-                <button onClick={() => alert('Share link copied!')}>Share</button>
+      {view === 'home' && (
+        <main key="home" className="fade-in">
+          {/* Section 2: Hero */}
+          <section className="hero">
+            <div className="hero-content">
+              <h1 className="hero-title">连接校园，让闲置转动起来</h1>
+              <p className="hero-subtitle">
+                OldNewHub 是专为校园设计的二手交易平台。在这里，你可以轻松转让你的闲置物品，也可以发现学长学姐留下的宝藏。
+              </p>
+              <button className="btn-primary" style={{ fontSize: '1.1rem', padding: '0.8rem 2rem' }} onClick={handleBrowse}>
+                Browse
+              </button>
+            </div>
+            <div className="hero-visual">
+              <div className="mockup-card">
+                <div className="mockup-img-placeholder"></div>
+                <div className="mockup-line" style={{ width: '80%' }}></div>
+                <div className="mockup-line" style={{ width: '60%' }}></div>
+                <div className="mockup-line" style={{ width: '40%', marginTop: '20px', backgroundColor: '#4f46e5' }}></div>
               </div>
-            ))}
+            </div>
+          </section>
+
+          {/* Section 3: Features */}
+          <section className="features-container">
+            <h2 className="section-title">为什么选择 OldNewHub?</h2>
+            <div className="features-grid">
+              <div className="feature-card">
+                <div className="feature-icon">🎓</div>
+                <h3>校内专享</h3>
+                <p>仅限本校学生和教职工使用，身份更透明，交易更安全。</p>
+              </div>
+              <div className="feature-card">
+                <div className="feature-icon">⚡</div>
+                <h3>极速发布</h3>
+                <p>简单的发布流程，一分钟即可让你的闲置物品上线展示。</p>
+              </div>
+              <div className="feature-card">
+                <div className="feature-icon">🤝</div>
+                <h3>线下交易</h3>
+                <p>支持校内当面验货交易，省去快递烦恼，信任触手可及。</p>
+              </div>
+            </div>
+          </section>
+        </main>
+      )}
+
+      <div className="content-area">
+        {view === 'dashboard' && (
+          <div key="dashboard" className="fade-in dashboard-container">
+            <section className="welcome-banner">
+              <h1>欢迎回来, {localStorage.getItem('username') || '同学'}!</h1>
+              <p>今天想发现点什么好物，还是让你的闲置重新发光？</p>
+            </section>
+
+            <div className="stats-grid">
+              <div className="stat-card">
+                <span className="stat-value">{dashboardData.activeItemsCount}</span>
+                <span className="stat-label">在售物品</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-value">{dashboardData.totalFavorites}</span>
+                <span className="stat-label">收到收藏</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-value">¥{dashboardData.totalSales}</span>
+                <span className="stat-label">累计成交额</span>
+              </div>
+            </div>
+
+            <div className="action-section">
+              <div className="recent-activity">
+                <h3 style={{ marginBottom: '1.5rem' }}>系统公告 & 推荐</h3>
+                {dashboardData.announcements.length > 0 ? dashboardData.announcements.map(ann => (
+                  <div key={ann.id} style={{ padding: '1rem', background: '#f8fafc', borderRadius: '12px', marginBottom: '1rem' }}>
+                    <p style={{ fontWeight: '600', color: ann.type === 'NOTICE' ? 'var(--primary-color)' : '#ec4899' }}>
+                      {ann.type === 'NOTICE' ? '📢' : '🔥'} {ann.title}
+                    </p>
+                    <p style={{ fontSize: '0.9rem', color: '#64748b' }}>{ann.content}</p>
+                  </div>
+                )) : (
+                  <p style={{ color: '#64748b' }}>暂无公告</p>
+                )}
+              </div>
+
+              <div className="quick-links">
+                <h3 style={{ marginBottom: '1rem' }}>快捷操作</h3>
+                <div className="link-card" onClick={() => setView('upload')}>
+                  <div className="link-icon">📤</div>
+                  <div>
+                    <div style={{ fontWeight: '600' }}>发布闲置</div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>简单三步快速变现</div>
+                  </div>
+                </div>
+                <div className="link-card" onClick={() => setView('list')}>
+                  <div className="link-icon">🔍</div>
+                  <div>
+                    <div style={{ fontWeight: '600' }}>探索好物</div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>看看大家都在卖什么</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {view === 'login' && (
-        <form onSubmit={handleLogin}>
-          <h2>Login</h2>
-          <input placeholder="Username" onChange={e => setUsername(e.target.value)} /><br/>
-          <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} /><br/>
-          <button type="submit">Login</button>
-        </form>
-      )}
+        {view === 'list' && (
+          <div key="list" className="fade-in">
+            <h2 style={{ marginBottom: '2rem' }}>精选好物</h2>
+            <div className="items-grid">
+              {items.length > 0 ? items.map(item => (
+                <div key={item.id} className="item-card">
+                  <h3>{item.title}</h3>
+                  <p style={{ color: '#64748b', fontSize: '0.9rem', height: '3em', overflow: 'hidden' }}>{item.description}</p>
+                  <p style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#4f46e5', margin: '1rem 0' }}>¥{item.price}</p>
+                  <button className="btn-outline" style={{ width: '100%' }} onClick={() => alert('分享链接已复制')}>分享</button>
+                </div>
+              )) : (
+                <p>暂无物品，快去上传一个吧！</p>
+              )}
+            </div>
+          </div>
+        )}
 
-      {view === 'register' && (
-        <form onSubmit={handleRegister}>
-          <h2>Register</h2>
-          <input placeholder="Username" onChange={e => setUsername(e.target.value)} /><br/>
-          <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} /><br/>
-          <button type="submit">Register</button>
-        </form>
-      )}
+        {view === 'login' && (
+          <form key="login" className="fade-in" onSubmit={handleLogin}>
+            <h2>欢迎回来</h2>
+            <input placeholder="用户名" required onChange={e => setUsername(e.target.value)} />
+            <input type="password" placeholder="密码" required onChange={e => setPassword(e.target.value)} />
+            <button className="btn-primary" style={{ width: '100%' }} type="submit">登录</button>
+            <button className="back-btn" type="button" onClick={() => setView('home')}>返回首页</button>
+            <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.9rem' }}>
+              还没有账号？ <a href="#" onClick={() => setView('register')}>立即注册</a>
+            </p>
+          </form>
+        )}
 
-      {view === 'upload' && (
-        <form onSubmit={handleUpload}>
-          <h2>Upload Item</h2>
-          <input name="title" placeholder="Item Title" required /><br/>
-          <input name="price" type="number" placeholder="Price" required /><br/>
-          <textarea name="description" placeholder="Description"></textarea><br/>
-          <button type="submit">Submit for Audit</button>
-        </form>
-      )}
+        {view === 'register' && (
+          <form key="register" className="fade-in" onSubmit={handleRegister}>
+            <h2>加入 OldNewHub</h2>
+            <input placeholder="用户名" required onChange={e => setUsername(e.target.value)} />
+            <input type="password" placeholder="密码" required onChange={e => setPassword(e.target.value)} />
+            <button className="btn-primary" style={{ width: '100%' }} type="submit">注册</button>
+            <button className="back-btn" type="button" onClick={() => setView('home')}>返回首页</button>
+            <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.9rem' }}>
+              已有账号？ <a href="#" onClick={() => setView('login')}>去登录</a>
+            </p>
+          </form>
+        )}
+
+        {view === 'upload' && (
+          <form key="upload" className="fade-in" onSubmit={handleUpload}>
+            <h2>发布闲置</h2>
+            <input name="title" placeholder="物品名称" required />
+            <input name="price" type="number" placeholder="期望价格 (¥)" required />
+            <textarea name="description" placeholder="描述一下你的宝贝（品牌、成色、转手原因等）" rows="4"></textarea>
+            <button className="btn-primary" style={{ width: '100%' }} type="submit">确认发布</button>
+            <button className="back-btn" type="button" onClick={() => setView('home')}>取消发布</button>
+          </form>
+        )}
+      </div>
+
+      {/* Section 4: Footer */}
+      <footer>
+        <p>© 2026 OldNewHub. All rights reserved.</p>
+        <p style={{ marginTop: '0.5rem' }}>创作者：Marsco</p>
+      </footer>
     </div>
   )
 }
