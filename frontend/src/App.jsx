@@ -572,7 +572,7 @@ function App() {
                     
                     <div className="audit-details">
                       <div className="audit-info-header">
-                        <span className="audit-id">#ID: {pendingItems[currentPage].id}</span>
+                        <span className="audit-id">#ID: {pendingItems[currentPage].itemId}</span>
                         <span className="audit-owner">发布者: {pendingItems[currentPage].owner?.username}</span>
                       </div>
                       <h3 className="audit-title">{pendingItems[currentPage].title}</h3>
@@ -582,8 +582,8 @@ function App() {
                       </div>
                       
                       <div className="audit-actions">
-                        <button className="btn-success" onClick={() => handleAudit(pendingItems[currentPage].id, 'APPROVED')}>通过审核</button>
-                        <button className="btn-danger" onClick={() => handleAudit(pendingItems[currentPage].id, 'REMOVED')}>拒绝并下架</button>
+                        <button className="btn-success" onClick={() => handleAudit(pendingItems[currentPage].itemId, 'APPROVED')}>通过审核</button>
+                        <button className="btn-danger" onClick={() => handleAudit(pendingItems[currentPage].itemId, 'REMOVED')}>拒绝并下架</button>
                       </div>
                     </div>
                   </div>

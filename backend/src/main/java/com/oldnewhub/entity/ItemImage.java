@@ -12,13 +12,13 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 public class ItemImage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long imageId;
 
     @Column(nullable = false)
     private String imageUrl;
 
     @ManyToOne
-    @JoinColumn(name = "item_id")
+    @JoinColumn(name = "itemId")
     @JsonBackReference
     private Item item;
 }

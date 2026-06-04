@@ -60,8 +60,8 @@ public class ItemService {
                 }
                 
                 String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
-                String relativePath = String.format("/Assets/%d/%d/%s", owner.getId(), savedItem.getId(), fileName);
-                Path path = Paths.get(uploadDir, String.valueOf(owner.getId()), String.valueOf(savedItem.getId()));
+                String relativePath = String.format("/Assets/%d/%d/%s", owner.getUserId(), savedItem.getItemId(), fileName);
+                Path path = Paths.get(uploadDir, String.valueOf(owner.getUserId()), String.valueOf(savedItem.getItemId()));
                 
                 try {
                     Files.createDirectories(path);
