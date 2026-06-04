@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 
 function App() {
   const [items, setItems] = useState([])
+  const [myItems, setMyItems] = useState([])
   const [dashboardData, setDashboardData] = useState({
     activeItemsCount: 0,
     totalFavorites: 0,
@@ -11,12 +12,15 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [view, setView] = useState('home') // home, list, login, register, upload, dashboard
+  const [view, setView] = useState('home') // home, list, login, register, upload, dashboard, my-market
 
   useEffect(() => {
     window.scrollTo(0, 0)
     if (view === 'dashboard' && (isLoggedIn || localStorage.getItem('auth'))) {
       fetchDashboardData()
+    }
+    if (view === 'my-market' && (isLoggedIn || localStorage.getItem('auth'))) {
+      fetchMyItems()
     }
   }, [view])
 
@@ -35,6 +39,49 @@ function App() {
       .then(res => res.json())
       .then(data => setItems(data))
       .catch(err => console.error("Fetch error:", err))
+  }
+
+  const fetchMyItems = () => {
+    const authHeader = localStorage.getItem('auth')
+    if (!authHeader) return
+
+    fetch('/api/items/mine', {
+      headers: { 'Authorization': authHeader }
+    })
+      .then(res => res.json())
+      .then(data => setMyItems(data))
+      .catch(err => console.error("Fetch my items error:", err))
+  }
+
+  const handleUpdateStatus = (id, newStatus) => {
+    const authHeader = localStorage.getItem('auth')
+    fetch(`/api/items/${id}/status?status=${newStatus}`, {
+      method: 'PUT',
+      headers: { 'Authorization': authHeader }
+    }).then(res => {
+      if (res.ok) {
+        fetchMyItems()
+      } else {
+        alert('Update failed')
+      }
+    })
+  }
+
+  const handleUpdatePrice = (id) => {
+    const newPrice = prompt('请输入新价格:')
+    if (newPrice === null || newPrice === '') return
+    
+    const authHeader = localStorage.getItem('auth')
+    fetch(`/api/items/${id}/price?price=${newPrice}`, {
+      method: 'PUT',
+      headers: { 'Authorization': authHeader }
+    }).then(res => {
+      if (res.ok) {
+        fetchMyItems()
+      } else {
+        alert('Update failed')
+      }
+    })
   }
 
   const fetchDashboardData = () => {
@@ -145,13 +192,15 @@ function App() {
           <div className="nav-buttons">
             {!isLoggedIn ? (
               <>
-                <button className="btn-primary" onClick={() => setView('login')}>Login</button>
-                <button className="btn-primary" onClick={() => setView('register')}>Register</button>
+                <button className="btn-primary" onClick={() => setView('login')}>登录</button>
+                <button className="btn-primary" onClick={() => setView('register')}>注册</button>
               </>
             ) : (
               <>
-                <button className="btn-outline" onClick={() => setView('upload')}>Upload</button>
-                <button className="btn-primary" onClick={() => { setIsLoggedIn(false); localStorage.removeItem('auth'); setView('home'); }}>Logout</button>
+                <button className="btn-outline" onClick={() => setView('dashboard')}>个人中心</button>
+                <button className="btn-outline" onClick={() => setView('list')}>广场</button>
+                <button className="btn-outline" onClick={() => setView('my-market')}>我的市场</button>
+                <button className="btn-primary" onClick={() => { setIsLoggedIn(false); localStorage.removeItem('auth'); setView('home'); }}>登出</button>
               </>
             )}
           </div>
@@ -260,6 +309,43 @@ function App() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {view === 'my-market' && (
+          <div key="my-market" className="fade-in">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+              <h2 style={{ margin: 0 }}>我的市场</h2>
+              <button className="btn-primary" onClick={() => setView('upload')}>发布闲置</button>
+            </div>
+            <div className="items-grid">
+              {myItems.length > 0 ? myItems.map(item => (
+                <div key={item.id} className="item-card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <h3>{item.title}</h3>
+                    <span className={`status-badge status-${item.status.toLowerCase()}`}>
+                      {item.status}
+                    </span>
+                  </div>
+                  <p style={{ color: '#64748b', fontSize: '0.9rem', height: '3em', overflow: 'hidden' }}>{item.description}</p>
+                  <p style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#4f46e5', margin: '1rem 0' }}>¥{item.price}</p>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '1rem' }}>
+                    <button className="btn-outline" onClick={() => handleUpdatePrice(item.id)}>改价</button>
+                    {item.status === 'REMOVED' ? (
+                      <button className="btn-outline" onClick={() => handleUpdateStatus(item.id, 'APPROVED')}>上架</button>
+                    ) : (
+                      <button className="btn-outline" onClick={() => handleUpdateStatus(item.id, 'REMOVED')}>下架</button>
+                    )}
+                  </div>
+                </div>
+              )) : (
+                <div style={{ textAlign: 'center', padding: '3rem', background: '#f8fafc', borderRadius: '16px' }}>
+                  <p style={{ color: '#64748b', marginBottom: '1rem' }}>你还没有上传任何物品</p>
+                  <button className="btn-primary" onClick={() => setView('upload')}>立即去发布</button>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -38,6 +38,11 @@ public class ItemController {
         return itemService.updateStatus(id, status, auth.getName());
     }
 
+    @PutMapping("/{id}/price")
+    public Item updatePrice(@PathVariable Long id, @RequestParam java.math.BigDecimal price, Authentication auth) {
+        return itemService.updatePrice(id, price, auth.getName());
+    }
+
     // Admin endpoints
     @GetMapping("/admin/all")
     public List<Item> adminListAll() {

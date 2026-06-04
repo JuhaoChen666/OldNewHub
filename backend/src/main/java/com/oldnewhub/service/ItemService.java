@@ -54,6 +54,16 @@ public class ItemService {
         return itemRepository.findByOwner(owner);
     }
 
+    public Item updatePrice(Long itemId, java.math.BigDecimal price, String username) {
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Item not found"));
+        if (item.getOwner().getUsername().equals(username)) {
+            item.setPrice(price);
+            return itemRepository.save(item);
+        }
+        throw new RuntimeException("Unauthorized");
+    }
+
     public List<Item> getAllItemsForAdmin() {
         return itemRepository.findAll();
     }

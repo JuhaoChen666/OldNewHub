@@ -397,3 +397,18 @@ input:focus {
   justify-content: center;
   border-radius: 12px;
 }
+
+/* Status Badges */
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-pending { background-color: #fef3c7; color: #92400e; }
+.status-approved { background-color: #dcfce7; color: #166534; }
+.status-rejected { background-color: #fee2e2; color: #991b1b; }
+.status-sold { background-color: #e0e7ff; color: #3730a3; }
+.status-removed { background-color: #f1f5f9; color: #475569; }
