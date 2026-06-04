@@ -47,9 +47,16 @@ public class ItemService {
                 throw new RuntimeException("Maximum 3 images allowed");
             }
             
+            java.util.List<String> allowedTypes = java.util.Arrays.asList("image/jpeg", "image/png", "image/webp", "image/jpg");
+
             for (MultipartFile file : images) {
                 if (file.getSize() > 10 * 1024 * 1024) {
                     throw new RuntimeException("Image size must be less than 10MB");
+                }
+                
+                String contentType = file.getContentType();
+                if (contentType == null || !allowedTypes.contains(contentType.toLowerCase())) {
+                    throw new RuntimeException("Unsupported file type: " + contentType + ". Only JPG, PNG, and WEBP are allowed.");
                 }
                 
                 String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();

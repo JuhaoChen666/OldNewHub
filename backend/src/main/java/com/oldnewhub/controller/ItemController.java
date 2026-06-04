@@ -26,9 +26,12 @@ public class ItemController {
 
     // Authenticated user endpoints
     @PostMapping(value = "/upload", consumes = {"multipart/form-data"})
-    public Item upload(@RequestPart("item") Item item, 
+    public Item upload(@RequestPart("item") String itemJson, 
                       @RequestPart(value = "images", required = false) MultipartFile[] images, 
-                      Authentication auth) {
+                      Authentication auth) throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        Item item = mapper.readValue(itemJson, Item.class);
         return itemService.uploadItem(item, auth.getName(), images);
     }
 
