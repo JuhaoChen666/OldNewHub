@@ -448,7 +448,7 @@ function App() {
             <textarea name="description" placeholder="描述一下你的宝贝（品牌、成色、转手原因等）" rows="4"></textarea>
             
             <div className="upload-section" style={{ margin: '1rem 0' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>添加图片 (最多3张，每张<10MB)</label>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>添加图片 (最多3张，每张小于 10MB)</label>
               <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                 {selectedImages.map((img, index) => (
                   <div key={index} style={{ position: 'relative', width: '100px', height: '100px' }}>
