@@ -8,6 +8,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
+import org.springframework.web.multipart.MultipartFile;
+
 @RestController
 @RequestMapping("/api/items")
 public class ItemController {
@@ -23,9 +25,11 @@ public class ItemController {
     }
 
     // Authenticated user endpoints
-    @PostMapping("/upload")
-    public Item upload(@RequestBody Item item, Authentication auth) {
-        return itemService.uploadItem(item, auth.getName());
+    @PostMapping(value = "/upload", consumes = {"multipart/form-data"})
+    public Item upload(@RequestPart("item") Item item, 
+                      @RequestPart(value = "images", required = false) MultipartFile[] images, 
+                      Authentication auth) {
+        return itemService.uploadItem(item, auth.getName(), images);
     }
 
     @GetMapping("/mine")

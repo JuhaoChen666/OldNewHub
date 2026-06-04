@@ -35,6 +35,9 @@ public class Item {
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private java.util.List<ItemImage> images = new java.util.ArrayList<>();
+
     public enum Status {
         PENDING, APPROVED, REJECTED, SOLD, REMOVED
     }

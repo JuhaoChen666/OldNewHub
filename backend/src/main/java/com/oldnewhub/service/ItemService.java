@@ -11,6 +11,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.oldnewhub.entity.ItemImage;
+import com.oldnewhub.repository.ItemImageRepository;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.UUID;
+import java.util.ArrayList;
+
 @Service
 public class ItemService {
 
@@ -20,12 +30,47 @@ public class ItemService {
     @Autowired
     private UserRepository userRepository;
 
-    public Item uploadItem(Item item, String username) {
+    @Autowired
+    private ItemImageRepository itemImageRepository;
+
+    private final String uploadDir = "backend/src/main/resources/Assets";
+
+    public Item uploadItem(Item item, String username, MultipartFile[] images) {
         User owner = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         item.setOwner(owner);
         item.setStatus(Item.Status.PENDING);
-        return itemRepository.save(item);
+        Item savedItem = itemRepository.save(item);
+
+        if (images != null && images.length > 0) {
+            if (images.length > 3) {
+                throw new RuntimeException("Maximum 3 images allowed");
+            }
+            
+            for (MultipartFile file : images) {
+                if (file.getSize() > 10 * 1024 * 1024) {
+                    throw new RuntimeException("Image size must be less than 10MB");
+                }
+                
+                String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+                String relativePath = String.format("/Assets/%d/%d/%s", owner.getId(), savedItem.getId(), fileName);
+                Path path = Paths.get(uploadDir, String.valueOf(owner.getId()), String.valueOf(savedItem.getId()));
+                
+                try {
+                    Files.createDirectories(path);
+                    Files.copy(file.getInputStream(), path.resolve(fileName));
+                    
+                    ItemImage itemImage = new ItemImage();
+                    itemImage.setImageUrl(relativePath);
+                    itemImage.setItem(savedItem);
+                    itemImageRepository.save(itemImage);
+                    savedItem.getImages().add(itemImage);
+                } catch (IOException e) {
+                    throw new RuntimeException("Failed to store image", e);
+                }
+            }
+        }
+        return savedItem;
     }
 
     public List<Item> getPublicItems(String keyword, Long categoryId) {

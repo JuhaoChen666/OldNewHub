@@ -12,9 +12,11 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [view, setView] = useState('home') // home, list, login, register, upload, dashboard, my-market
+  const [view, setView] = useState('home') // home, list, login, register, upload, dashboard, my-market        
+  const [selectedImages, setSelectedImages] = useState([])
 
   useEffect(() => {
+
     window.scrollTo(0, 0)
     if (view === 'dashboard' && (isLoggedIn || localStorage.getItem('auth'))) {
       fetchDashboardData()
@@ -161,24 +163,62 @@ function App() {
     }
   }
 
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files)
+    if (files.length + selectedImages.length > 3) {
+      alert('最多上传3张图片')
+      return
+    }
+    const validFiles = files.filter(file => {
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`${file.name} 超过10MB限制`)
+        return false
+      }
+      return true
+    })
+    
+    const newImages = validFiles.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }))
+    setSelectedImages([...selectedImages, ...newImages])
+  }
+
+  const removeImage = (index) => {
+    const newImages = [...selectedImages]
+    URL.revokeObjectURL(newImages[index].preview)
+    newImages.splice(index, 1)
+    setSelectedImages(newImages)
+  }
+
   const handleUpload = (e) => {
     e.preventDefault()
-    const title = e.target.title.value
-    const price = e.target.price.value
-    const description = e.target.description.value
+    const formData = new FormData()
+    const item = {
+      title: e.target.title.value,
+      price: e.target.price.value,
+      description: e.target.description.value
+    }
+    
+    formData.append('item', new Blob([JSON.stringify(item)], { type: 'application/json' }))
+    selectedImages.forEach(img => {
+      formData.append('images', img.file)
+    })
 
     fetch('/api/items/upload', {
       method: 'POST',
       headers: { 
-        'Content-Type': 'application/json',
         'Authorization': localStorage.getItem('auth')
       },
-      body: JSON.stringify({ title, price, description })
+      body: formData
     }).then(res => {
       if (res.ok) {
-        alert('Item uploaded and pending audit!')
+        alert('物品已提交审核！')
+        setSelectedImages([])
         setView('list')
         fetchItems()
+      } else {
+        alert('上传失败')
       }
     })
   }
@@ -328,6 +368,9 @@ function App() {
                       {item.status}
                     </span>
                   </div>
+                  {item.images && item.images.length > 0 && (
+                    <img src={item.images[0].imageUrl} style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '8px', marginBottom: '1rem' }} alt={item.title} />
+                  )}
                   <p style={{ color: '#64748b', fontSize: '0.9rem', height: '3em', overflow: 'hidden' }}>{item.description}</p>
                   <p style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#4f46e5', margin: '1rem 0' }}>¥{item.price}</p>
                   
@@ -356,6 +399,9 @@ function App() {
             <div className="items-grid">
               {items.length > 0 ? items.map(item => (
                 <div key={item.id} className="item-card">
+                  {item.images && item.images.length > 0 && (
+                    <img src={item.images[0].imageUrl} style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '8px', marginBottom: '1rem' }} alt={item.title} />
+                  )}
                   <h3>{item.title}</h3>
                   <p style={{ color: '#64748b', fontSize: '0.9rem', height: '3em', overflow: 'hidden' }}>{item.description}</p>
                   <p style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#4f46e5', margin: '1rem 0' }}>¥{item.price}</p>
@@ -400,6 +446,40 @@ function App() {
             <input name="title" placeholder="物品名称" required />
             <input name="price" type="number" placeholder="期望价格 (¥)" required />
             <textarea name="description" placeholder="描述一下你的宝贝（品牌、成色、转手原因等）" rows="4"></textarea>
+            
+            <div className="upload-section" style={{ margin: '1rem 0' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>添加图片 (最多3张，每张<10MB)</label>
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                {selectedImages.map((img, index) => (
+                  <div key={index} style={{ position: 'relative', width: '100px', height: '100px' }}>
+                    <img src={img.preview} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+                    <button 
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >×</button>
+                  </div>
+                ))}
+                {selectedImages.length < 3 && (
+                  <label style={{ 
+                    width: '100px', 
+                    height: '100px', 
+                    border: '2px dashed #cbd5e1', 
+                    borderRadius: '8px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    cursor: 'pointer',
+                    fontSize: '2rem',
+                    color: '#94a3b8'
+                  }}>
+                    +
+                    <input type="file" multiple accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+                  </label>
+                )}
+              </div>
+            </div>
+
             <button className="btn-primary" style={{ width: '100%' }} type="submit">确认发布</button>
             <button className="back-btn" type="button" onClick={() => setView('home')}>取消发布</button>
           </form>
