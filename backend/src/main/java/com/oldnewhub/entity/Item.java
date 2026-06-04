@@ -39,6 +39,6 @@ public class Item {
     private java.util.List<ItemImage> images = new java.util.ArrayList<>();
 
     public enum Status {
-        PENDING, APPROVED, REJECTED, SOLD, REMOVED
+        PENDING, APPROVED, SOLD, REMOVED
     }
 }

@@ -412,3 +412,158 @@ input:focus {
 .status-rejected { background-color: #fee2e2; color: #991b1b; }
 .status-sold { background-color: #e0e7ff; color: #3730a3; }
 .status-removed { background-color: #f1f5f9; color: #475569; }
+
+/* Admin Audit Styles */
+.admin-audit-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.audit-book {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  overflow: hidden;
+  padding: 2rem;
+}
+
+.audit-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  min-height: 400px;
+}
+
+@media (max-width: 768px) {
+  .audit-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+.audit-visual {
+  background: #f8fafc;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.audit-image-preview {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.audit-image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-count {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.audit-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.audit-info-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 1rem;
+}
+
+.audit-title {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.audit-price {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #4f46e5;
+  margin-bottom: 1.5rem;
+}
+
+.audit-description-box {
+  flex-grow: 1;
+  background: #f1f5f9;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #334155;
+}
+
+.audit-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.btn-success {
+  background-color: #10b981;
+  color: white;
+  border: none;
+  padding: 0.8rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.8rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.audit-navigation {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.nav-page-btn {
+  background: #f1f5f9;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nav-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.nav-page-btn:not(:disabled):hover {
+  background: #e2e8f0;
+}
+
+.page-indicator {
+  font-weight: 600;
+  color: #64748b;
+}

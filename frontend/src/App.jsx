@@ -12,17 +12,22 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [view, setView] = useState('home') // home, list, login, register, upload, dashboard, my-market        
+  const [view, setView] = useState('home') // home, list, login, register, upload, dashboard, my-market, admin-audit
   const [selectedImages, setSelectedImages] = useState([])
+  const [pendingItems, setPendingItems] = useState([])
+  const [currentPage, setCurrentPage] = useState(0)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
-
     window.scrollTo(0, 0)
     if (view === 'dashboard' && (isLoggedIn || localStorage.getItem('auth'))) {
       fetchDashboardData()
     }
     if (view === 'my-market' && (isLoggedIn || localStorage.getItem('auth'))) {
       fetchMyItems()
+    }
+    if (view === 'admin-audit') {
+      fetchPendingItems()
     }
   }, [view])
 
@@ -31,16 +36,47 @@ function App() {
     const storedAuth = localStorage.getItem('auth')
     if (storedAuth) {
       setIsLoggedIn(true)
-      // If we're already logged in, set view to dashboard and fetch data
-      setView('dashboard')
+      // Check if user is admin (this is a simple check, in reality should be based on server response)
+      if (localStorage.getItem('username') === 'admin') {
+        setIsAdmin(true)
+        setView('dashboard')
+      } else {
+        setView('dashboard')
+      }
     }
   }, [])
 
-  const fetchItems = () => {
-    fetch('/api/items/public/list')
+  const fetchPendingItems = () => {
+    const authHeader = localStorage.getItem('auth')
+    if (!authHeader) return
+
+    fetch('/api/items/admin/all', {
+      headers: { 'Authorization': authHeader }
+    })
       .then(res => res.json())
-      .then(data => setItems(data))
-      .catch(err => console.error("Fetch error:", err))
+      .then(data => {
+        const pending = data.filter(item => item.status === 'PENDING')
+        setPendingItems(pending)
+      })
+      .catch(err => console.error("Fetch pending items error:", err))
+  }
+
+  const handleAudit = (id, newStatus) => {
+    const authHeader = localStorage.getItem('auth')
+    fetch(`/api/items/${id}/status?status=${newStatus}`, {
+      method: 'PUT',
+      headers: { 'Authorization': authHeader }
+    }).then(res => {
+      if (res.ok) {
+        alert(newStatus === 'APPROVED' ? '审核已通过' : '已下架')
+        fetchPendingItems()
+        if (currentPage >= pendingItems.length - 1 && currentPage > 0) {
+          setCurrentPage(currentPage - 1)
+        }
+      } else {
+        alert('操作失败')
+      }
+    })
   }
 
   const fetchMyItems = () => {
@@ -267,6 +303,7 @@ function App() {
             ) : (
               <>
                 <button className="btn-outline" onClick={() => setView('dashboard')}>个人中心</button>
+                {isAdmin && <button className="btn-outline" onClick={() => setView('admin-audit')}>管理中心</button>}
                 <button className="btn-outline" onClick={() => setView('list')}>广场</button>
                 <button className="btn-outline" onClick={() => setView('my-market')}>我的市场</button>
                 <button className="btn-primary" onClick={() => { setIsLoggedIn(false); localStorage.removeItem('auth'); setView('home'); }}>登出</button>
@@ -512,6 +549,68 @@ function App() {
             <button className="btn-primary" style={{ width: '100%' }} type="submit">确认发布</button>
             <button className="back-btn" type="button" onClick={() => setView('home')}>取消发布</button>
           </form>
+        )}
+
+        {view === 'admin-audit' && (
+          <div key="admin-audit" className="fade-in admin-audit-container">
+            <h2 style={{ marginBottom: '2rem' }}>审核中心 (待处理: {pendingItems.length})</h2>
+            
+            {pendingItems.length > 0 ? (
+              <div className="audit-book">
+                <div className="audit-page">
+                  <div className="audit-card">
+                    <div className="audit-visual">
+                      {pendingItems[currentPage].images && pendingItems[currentPage].images.length > 0 ? (
+                        <div className="audit-image-preview">
+                          <img src={pendingItems[currentPage].images[0].imageUrl} alt="Item" />
+                          <div className="image-count">{pendingItems[currentPage].images.length}张图片</div>
+                        </div>
+                      ) : (
+                        <div className="no-image-placeholder">暂无图片</div>
+                      )}
+                    </div>
+                    
+                    <div className="audit-details">
+                      <div className="audit-info-header">
+                        <span className="audit-id">#ID: {pendingItems[currentPage].id}</span>
+                        <span className="audit-owner">发布者: {pendingItems[currentPage].owner?.username}</span>
+                      </div>
+                      <h3 className="audit-title">{pendingItems[currentPage].title}</h3>
+                      <p className="audit-price">¥{pendingItems[currentPage].price}</p>
+                      <div className="audit-description-box">
+                        <p>{pendingItems[currentPage].description || '无描述'}</p>
+                      </div>
+                      
+                      <div className="audit-actions">
+                        <button className="btn-success" onClick={() => handleAudit(pendingItems[currentPage].id, 'APPROVED')}>通过审核</button>
+                        <button className="btn-danger" onClick={() => handleAudit(pendingItems[currentPage].id, 'REMOVED')}>拒绝并下架</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="audit-navigation">
+                  <button 
+                    disabled={currentPage === 0} 
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    className="nav-page-btn"
+                  >上一页</button>
+                  <span className="page-indicator">{currentPage + 1} / {pendingItems.length}</span>
+                  <button 
+                    disabled={currentPage === pendingItems.length - 1} 
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    className="nav-page-btn"
+                  >下一页</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '5rem', background: '#f8fafc', borderRadius: '16px' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉</div>
+                <p style={{ color: '#64748b' }}>所有闲置物品已处理完毕</p>
+                <button className="btn-outline" style={{ marginTop: '1.5rem' }} onClick={() => setView('dashboard')}>返回个人中心</button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
