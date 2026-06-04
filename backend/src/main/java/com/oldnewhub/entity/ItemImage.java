@@ -12,6 +12,7 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 public class ItemImage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "imageId")
     private Long imageId;
 
     @Column(nullable = false)

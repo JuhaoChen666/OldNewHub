@@ -17,9 +17,21 @@ function App() {
   const [pendingItems, setPendingItems] = useState([])
   const [currentPage, setCurrentPage] = useState(0)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [categoryFilter, setCategoryFilter] = useState(null)
+
+  const CATEGORIES = [
+    { id: 1, name: '图书' },
+    { id: 2, name: '电子产品' },
+    { id: 3, name: '生活用品' },
+    { id: 4, name: '运动器材' },
+    { id: 5, name: '其它' },
+  ]
 
   useEffect(() => {
     window.scrollTo(0, 0)
+    if (view === 'list') {
+      fetchItems(categoryFilter)
+    }
     if (view === 'dashboard' && (isLoggedIn || localStorage.getItem('auth'))) {
       fetchDashboardData()
     }
@@ -36,15 +48,29 @@ function App() {
     const storedAuth = localStorage.getItem('auth')
     if (storedAuth) {
       setIsLoggedIn(true)
-      // Check if user is admin (this is a simple check, in reality should be based on server response)
-      if (localStorage.getItem('username') === 'admin') {
+      if (localStorage.getItem('role') === 'ADMIN') {
         setIsAdmin(true)
-        setView('dashboard')
-      } else {
-        setView('dashboard')
       }
+      setView('dashboard')
     }
   }, [])
+
+  const fetchItems = (categoryId = null) => {
+    let url = '/api/items/public/list'
+    if (categoryId) {
+      url += '?categoryId=' + categoryId
+    }
+    fetch(url)
+      .then(async res => {
+        if (!res.ok) {
+          const errText = await res.text().catch(() => 'Unknown error')
+          throw new Error(`HTTP ${res.status}: ${errText}`)
+        }
+        return res.json()
+      })
+      .then(data => setItems(data))
+      .catch(err => console.error("Fetch items error:", err))
+  }
 
   const fetchPendingItems = () => {
     const authHeader = localStorage.getItem('auth')
@@ -96,29 +122,65 @@ function App() {
     fetch(`/api/items/${id}/status?status=${newStatus}`, {
       method: 'PUT',
       headers: { 'Authorization': authHeader }
-    }).then(res => {
+    }).then(async res => {
       if (res.ok) {
         fetchMyItems()
       } else {
-        alert('Update failed')
+        const error = await res.json().catch(() => ({ error: 'Update failed' }))
+        alert('操作失败: ' + (error.error || '请稍后重试'))
       }
+    }).catch(err => {
+      console.error("Update status error:", err)
+      alert('网络错误，请稍后重试')
     })
   }
 
-  const handleUpdatePrice = (id) => {
-    const newPrice = prompt('请输入新价格:')
-    if (newPrice === null || newPrice === '') return
-    
+  const handleUpdatePrice = (id, currentPrice) => {
+    const newPriceStr = prompt('请输入新价格:')
+    if (newPriceStr === null || newPriceStr === '') return
+
+    const newPrice = parseFloat(newPriceStr)
+    if (isNaN(newPrice) || newPrice <= 0) {
+      alert('请输入有效的正数价格')
+      return
+    }
+
+    let reason = ''
+    const currentPriceNum = parseFloat(currentPrice)
+    if (currentPriceNum > 0) {
+      const changePercent = Math.abs(newPrice - currentPriceNum) / currentPriceNum
+      if (changePercent > 0.25) {
+        const percentDisplay = (changePercent * 100).toFixed(1)
+        reason = prompt(`价格变动 ${percentDisplay}%，超过25%需要说明理由才能重新审核:\n(例如：降价促销、物品有瑕疵等)`)
+        if (reason === null) return
+        if (reason.trim() === '') {
+          alert('价格变动超过25%必须说明理由，操作已取消')
+          return
+        }
+      }
+    }
+
     const authHeader = localStorage.getItem('auth')
-    fetch(`/api/items/${id}/price?price=${newPrice}`, {
+    let url = `/api/items/${id}/price?price=${newPrice}`
+    if (reason) url += '&reason=' + encodeURIComponent(reason.trim())
+
+    fetch(url, {
       method: 'PUT',
       headers: { 'Authorization': authHeader }
-    }).then(res => {
+    }).then(async res => {
       if (res.ok) {
+        const data = await res.json()
+        if (data.needsReview) {
+          alert('价格变动超过25%，物品已重新提交审核，请等待管理员审核通过')
+        }
         fetchMyItems()
       } else {
-        alert('Update failed')
+        const error = await res.json().catch(() => ({ error: 'Update failed' }))
+        alert('改价失败: ' + (error.error || '请稍后重试'))
       }
+    }).catch(err => {
+      console.error("Update price error:", err)
+      alert('网络错误，请稍后重试')
     })
   }
 
@@ -143,7 +205,10 @@ function App() {
         // If unauthorized, might want to logout
         if (err.message.includes('401')) {
            localStorage.removeItem('auth')
+           localStorage.removeItem('role')
+           localStorage.removeItem('username')
            setIsLoggedIn(false)
+           setIsAdmin(false)
            setView('login')
         }
       })
@@ -151,28 +216,29 @@ function App() {
 
   const handleLogin = (e) => {
     e.preventDefault()
-    try {
-      // Use encodeURIComponent + unescape for UTF-8 support in btoa
-      const authHeader = 'Basic ' + btoa(unescape(encodeURIComponent(username + ':' + password)))
-      fetch('/api/auth/login-success', {
-        headers: { 'Authorization': authHeader }
-      }).then(res => {
-        if (res.ok) {
-          setIsLoggedIn(true)
-          localStorage.setItem('auth', authHeader)
-          localStorage.setItem('username', username)
-          setView('dashboard')
-        } else {
-          alert('Login failed: Invalid username or password')
+    fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    }).then(async res => {
+      if (res.ok) {
+        const data = await res.json()
+        setIsLoggedIn(true)
+        localStorage.setItem('auth', data.token)
+        localStorage.setItem('username', data.username)
+        localStorage.setItem('role', data.role)
+        if (data.role === 'ADMIN') {
+          setIsAdmin(true)
         }
-      }).catch(err => {
-        console.error("Login request error:", err)
-        alert('Network error or server is down')
-      })
-    } catch (err) {
-      console.error("Auth encoding error:", err)
-      alert('Login failed: Character encoding error')
-    }
+        setView('dashboard')
+      } else {
+        const error = await res.json().catch(() => ({ error: 'Invalid credentials' }))
+        alert('Login failed: ' + (error.error || 'Invalid username or password'))
+      }
+    }).catch(err => {
+      console.error("Login request error:", err)
+      alert('Network error or server is down')
+    })
   }
 
   const handleRegister = (e) => {
@@ -181,13 +247,17 @@ function App() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password, email: username + '@example.com' })
-    }).then(res => {
+    }).then(async res => {
       if (res.ok) {
         alert('Registered! Please login.')
         setView('login')
       } else {
-        alert('Registration failed')
+        const error = await res.json().catch(() => ({ error: 'Registration failed' }))
+        alert('Registration failed: ' + (error.error || 'Unknown error'))
       }
+    }).catch(err => {
+      console.error("Register request error:", err)
+      alert('Network error or server is down')
     })
   }
 
@@ -241,7 +311,8 @@ function App() {
     const item = {
       title: e.target.title.value,
       price: e.target.price.value,
-      description: e.target.description.value
+      description: e.target.description.value,
+      category: { categoryId: parseInt(e.target.category.value) }
     }
     
     formData.append('item', new Blob([JSON.stringify(item)], { type: 'application/json' }))
@@ -306,7 +377,7 @@ function App() {
                 {isAdmin && <button className="btn-outline" onClick={() => setView('admin-audit')}>管理中心</button>}
                 <button className="btn-outline" onClick={() => setView('list')}>广场</button>
                 <button className="btn-outline" onClick={() => setView('my-market')}>我的市场</button>
-                <button className="btn-primary" onClick={() => { setIsLoggedIn(false); localStorage.removeItem('auth'); setView('home'); }}>登出</button>
+                <button className="btn-primary" onClick={() => { setIsLoggedIn(false); setIsAdmin(false); localStorage.removeItem('auth'); localStorage.removeItem('role'); localStorage.removeItem('username'); setView('home'); }}>登出</button>
               </>
             )}
           </div>
@@ -427,7 +498,7 @@ function App() {
             </div>
             <div className="items-grid">
               {myItems.length > 0 ? myItems.map(item => (
-                <div key={item.id} className="item-card">
+                <div key={item.itemId} className="item-card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <h3>{item.title}</h3>
                     <span className={`status-badge status-${item.status.toLowerCase()}`}>
@@ -439,13 +510,13 @@ function App() {
                   )}
                   <p style={{ color: '#64748b', fontSize: '0.9rem', height: '3em', overflow: 'hidden' }}>{item.description}</p>
                   <p style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#4f46e5', margin: '1rem 0' }}>¥{item.price}</p>
-                  
+
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '1rem' }}>
-                    <button className="btn-outline" onClick={() => handleUpdatePrice(item.id)}>改价</button>
+                    <button className="btn-outline" onClick={() => handleUpdatePrice(item.itemId, item.price)}>改价</button>
                     {item.status === 'REMOVED' ? (
-                      <button className="btn-outline" onClick={() => handleUpdateStatus(item.id, 'APPROVED')}>上架</button>
+                      <button className="btn-outline" onClick={() => handleUpdateStatus(item.itemId, 'APPROVED')}>上架</button>
                     ) : (
-                      <button className="btn-outline" onClick={() => handleUpdateStatus(item.id, 'REMOVED')}>下架</button>
+                      <button className="btn-outline" onClick={() => handleUpdateStatus(item.itemId, 'REMOVED')}>下架</button>
                     )}
                   </div>
                 </div>
@@ -461,10 +532,28 @@ function App() {
 
         {view === 'list' && (
           <div key="list" className="fade-in">
-            <h2 style={{ marginBottom: '2rem' }}>精选好物</h2>
+            <h2 style={{ marginBottom: '1rem' }}>精选好物</h2>
+
+            {/* Category filter bar */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+              <button
+                className={categoryFilter === null ? 'btn-primary' : 'btn-outline'}
+                style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
+                onClick={() => { setCategoryFilter(null); fetchItems(null); }}
+              >全部</button>
+              {CATEGORIES.map(cat => (
+                <button
+                  key={cat.id}
+                  className={categoryFilter === cat.id ? 'btn-primary' : 'btn-outline'}
+                  style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
+                  onClick={() => { setCategoryFilter(cat.id); fetchItems(cat.id); }}
+                >{cat.name}</button>
+              ))}
+            </div>
+
             <div className="items-grid">
               {items.length > 0 ? items.map(item => (
-                <div key={item.id} className="item-card">
+                <div key={item.itemId} className="item-card">
                   {item.images && item.images.length > 0 && (
                     <img src={item.images[0].imageUrl} style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '8px', marginBottom: '1rem' }} alt={item.title} />
                   )}
@@ -511,6 +600,14 @@ function App() {
             <h2>发布闲置</h2>
             <input name="title" placeholder="物品名称" required />
             <input name="price" type="number" placeholder="期望价格 (¥)" required />
+            <select name="category" required style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '1rem' }} defaultValue="">
+              <option value="" disabled>选择分类</option>
+              <option value="1">图书</option>
+              <option value="2">电子产品</option>
+              <option value="3">生活用品</option>
+              <option value="4">运动器材</option>
+              <option value="5">其它</option>
+            </select>
             <textarea name="description" placeholder="描述一下你的宝贝（品牌、成色、转手原因等）" rows="4"></textarea>
             
             <div className="upload-section" style={{ margin: '1rem 0' }}>

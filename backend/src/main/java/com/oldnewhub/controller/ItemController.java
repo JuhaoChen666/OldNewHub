@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.web.multipart.MultipartFile;
 
@@ -26,8 +27,8 @@ public class ItemController {
 
     // Authenticated user endpoints
     @PostMapping(value = "/upload", consumes = {"multipart/form-data"})
-    public Item upload(@RequestPart("item") String itemJson, 
-                      @RequestPart(value = "images", required = false) MultipartFile[] images, 
+    public Item upload(@RequestPart("item") String itemJson,
+                      @RequestPart(value = "images", required = false) MultipartFile[] images,
                       Authentication auth) throws Exception {
         com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
@@ -41,13 +42,30 @@ public class ItemController {
     }
 
     @PutMapping("/{id}/status")
-    public Item updateStatus(@PathVariable Long id, @RequestParam Item.Status status, Authentication auth) {
-        return itemService.updateStatus(id, status, auth.getName());
+    public ResponseEntity<?> updateStatus(@PathVariable Long id, @RequestParam Item.Status status, Authentication auth) {
+        try {
+            return ResponseEntity.ok(itemService.updateStatus(id, status, auth.getName()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PutMapping("/{id}/price")
-    public Item updatePrice(@PathVariable Long id, @RequestParam java.math.BigDecimal price, Authentication auth) {
-        return itemService.updatePrice(id, price, auth.getName());
+    public ResponseEntity<?> updatePrice(@PathVariable Long id,
+                                          @RequestParam java.math.BigDecimal price,
+                                          @RequestParam(required = false) String reason,
+                                          Authentication auth) {
+        try {
+            Item updated = itemService.updatePrice(id, price, reason, auth.getName());
+            boolean needsReview = updated.getStatus() == Item.Status.PENDING &&
+                                  updated.getPriceChangeReason() != null;
+            return ResponseEntity.ok(Map.of(
+                "item", updated,
+                "needsReview", needsReview
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     // Admin endpoints
