@@ -169,15 +169,15 @@ function App() {
       alert('最多上传3张图片')
       return
     }
-    const validFiles = files.filter(file => {
-      if (file.size > 10 * 1024 * 1024) {
-        alert(`${file.name} 超过10MB限制`)
-        return false
-      }
-      return true
-    })
     
-    const newImages = validFiles.map(file => ({
+    // Check if ANY file exceeds the limit
+    const overLimit = files.find(file => file.size > 10 * 1024 * 1024)
+    if (overLimit) {
+      alert(`图片 "${overLimit.name}" 超过10MB限制，请压缩后重试`)
+      return
+    }
+    
+    const newImages = files.map(file => ({
       file,
       preview: URL.createObjectURL(file)
     }))
@@ -193,6 +193,14 @@ function App() {
 
   const handleUpload = (e) => {
     e.preventDefault()
+    
+    // Final sanity check on image sizes
+    const overLimit = selectedImages.find(img => img.file.size > 10 * 1024 * 1024)
+    if (overLimit) {
+      alert(`无法发布：图片 "${overLimit.file.name}" 超过 10MB 限制`)
+      return
+    }
+
     const formData = new FormData()
     const item = {
       title: e.target.title.value,
@@ -211,15 +219,19 @@ function App() {
         'Authorization': localStorage.getItem('auth')
       },
       body: formData
-    }).then(res => {
+    }).then(async res => {
       if (res.ok) {
         alert('物品已提交审核！')
         setSelectedImages([])
         setView('list')
         fetchItems()
       } else {
-        alert('上传失败')
+        const errorMsg = await res.text()
+        alert('上传失败: ' + (errorMsg || '服务器响应异常'))
       }
+    }).catch(err => {
+      console.error("Upload error:", err)
+      alert('网络错误，请稍后重试')
     })
   }
 
