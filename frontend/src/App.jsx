@@ -226,8 +226,25 @@ function App() {
         setView('list')
         fetchItems()
       } else {
-        const errorMsg = await res.text()
-        alert('上传失败: ' + (errorMsg || '服务器响应异常'))
+        let errorMsg = '服务器响应异常'
+        try {
+          const contentType = res.headers.get("content-type")
+          if (contentType && contentType.indexOf("application/json") !== -1) {
+            const errorData = await res.json()
+            errorMsg = errorData.message || errorData.error || errorMsg
+          } else {
+            errorMsg = await res.text() || errorMsg
+          }
+        } catch (e) {
+          console.error("Parse error info failed", e)
+        }
+
+        // Friendly mapping for common HTTP status codes
+        if (res.status === 415) errorMsg = '不支持的文件类型，请上传图片文件'
+        else if (res.status === 413) errorMsg = '文件太大，超过服务器限制'
+        else if (res.status === 403) errorMsg = '权限不足，请重新登录'
+        
+        alert('上传失败: ' + errorMsg)
       }
     }).catch(err => {
       console.error("Upload error:", err)
