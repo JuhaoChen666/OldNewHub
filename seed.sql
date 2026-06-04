@@ -1,3 +1,7 @@
+-- Create Database
+CREATE DATABASE IF NOT EXISTS oldnewhub;
+USE oldnewhub;
+
 -- Drop tables if they exist
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS item_images;
