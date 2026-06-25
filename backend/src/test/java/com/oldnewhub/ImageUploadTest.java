@@ -50,7 +50,7 @@ public class ImageUploadTest {
         }
 
         // Prepare item JSON
-        String itemJson = "{\"title\":\"Test Item\",\"description\":\"Test Description\",\"price\":99.99}";
+        String itemJson = "{\"title\":\"Test Item\",\"description\":\"Test Description\",\"price\":99.99,\"tradeAddress\":\"Library Gate\"}";
         MockMultipartFile itemPart = new MockMultipartFile(
                 "item",
                 "",
@@ -89,7 +89,7 @@ public class ImageUploadTest {
         assertEquals(2, savedItem.getImages().size());
         
         String firstImageUrl = savedItem.getImages().get(0).getImageUrl();
-        assertTrue(firstImageUrl.startsWith("/Assets/"));
+        assertTrue(firstImageUrl.startsWith("/api/files/"));
         
         // Check if file physically exists
         String physicalPath = "backend/src/main/resources" + firstImageUrl;

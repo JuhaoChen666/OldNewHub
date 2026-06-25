@@ -25,6 +25,9 @@ public class Item {
     @Column(nullable = false)
     private BigDecimal price;
 
+    @Column(name = "trade_address")
+    private String tradeAddress;
+
     @ManyToOne
     @JoinColumn(name = "categoryId")
     private Category category;

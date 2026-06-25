@@ -567,3 +567,45 @@ input:focus {
   font-weight: 600;
   color: #64748b;
 }
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1000;
+}
+
+.buy-dialog {
+  width: min(520px, 100%);
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+}
+
+.buy-dialog h2 {
+  margin: 0 0 1rem;
+}
+
+.buy-dialog label {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: #334155;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.buy-dialog input[readonly] {
+  background: #f8fafc;
+  color: #475569;
+}
+
+.dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}

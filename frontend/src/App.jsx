@@ -12,12 +12,16 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('')
   const [view, setView] = useState('home') // home, list, login, register, upload, dashboard, my-market, admin-audit
   const [selectedImages, setSelectedImages] = useState([])
   const [pendingItems, setPendingItems] = useState([])
   const [currentPage, setCurrentPage] = useState(0)
   const [isAdmin, setIsAdmin] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState(null)
+  const [buyDialogItem, setBuyDialogItem] = useState(null)
+  const [buyMessage, setBuyMessage] = useState('')
+  const [isSendingBuyRequest, setIsSendingBuyRequest] = useState(false)
 
   const CATEGORIES = [
     { id: 1, name: '图书' },
@@ -246,7 +250,7 @@ function App() {
     fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, email: username + '@example.com' })
+      body: JSON.stringify({ username, password, email })
     }).then(async res => {
       if (res.ok) {
         alert('Registered! Please login.')
@@ -311,6 +315,7 @@ function App() {
     const item = {
       title: e.target.title.value,
       price: e.target.price.value,
+      tradeAddress: e.target.tradeAddress.value,
       description: e.target.description.value,
       category: { categoryId: parseInt(e.target.category.value) }
     }
@@ -356,6 +361,52 @@ function App() {
     }).catch(err => {
       console.error("Upload error:", err)
       alert('网络错误，请稍后重试')
+    })
+  }
+
+  const openBuyDialog = (item) => {
+    if (!isLoggedIn && !localStorage.getItem('auth')) {
+      setView('login')
+      return
+    }
+    setBuyDialogItem(item)
+    setBuyMessage(`你好，我在 OldNewHub 上看到了你发布的「${item.title}」。我想了解一下物品目前是否还在，以及是否方便约在校园内线下看货交易。`)
+  }
+
+  const closeBuyDialog = (force = false) => {
+    if (isSendingBuyRequest && !force) return
+    setBuyDialogItem(null)
+    setBuyMessage('')
+  }
+
+  const sendBuyRequest = () => {
+    if (!buyDialogItem) return
+    if (!buyMessage.trim()) {
+      alert('请填写邮件正文')
+      return
+    }
+
+    setIsSendingBuyRequest(true)
+    fetch(`/api/items/${buyDialogItem.itemId}/buy-request`, {
+      method: 'POST',
+      headers: {
+        'Authorization': localStorage.getItem('auth'),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ message: buyMessage.trim() })
+    }).then(async res => {
+      if (res.ok) {
+        alert('交易请求已发送到卖家邮箱')
+        closeBuyDialog(true)
+      } else {
+        const error = await res.json().catch(() => ({ error: 'Send failed' }))
+        alert('发送失败: ' + (error.error || '请稍后重试'))
+      }
+    }).catch(err => {
+      console.error("Buy request error:", err)
+      alert('网络错误，请稍后重试')
+    }).finally(() => {
+      setIsSendingBuyRequest(false)
     })
   }
 
@@ -509,6 +560,7 @@ function App() {
                     <img src={item.images[0].imageUrl} style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '8px', marginBottom: '1rem' }} alt={item.title} />
                   )}
                   <p style={{ color: '#64748b', fontSize: '0.9rem', height: '3em', overflow: 'hidden' }}>{item.description}</p>
+                  <p style={{ color: '#475569', fontSize: '0.9rem', margin: '0.75rem 0' }}>交易地址：{item.tradeAddress || '未填写'}</p>
                   <p style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#4f46e5', margin: '1rem 0' }}>¥{item.price}</p>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '1rem' }}>
@@ -559,8 +611,10 @@ function App() {
                   )}
                   <h3>{item.title}</h3>
                   <p style={{ color: '#64748b', fontSize: '0.9rem', height: '3em', overflow: 'hidden' }}>{item.description}</p>
+                  <p style={{ color: '#475569', fontSize: '0.9rem', margin: '0.75rem 0' }}>交易地址：{item.tradeAddress || '未填写'}</p>
                   <p style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#4f46e5', margin: '1rem 0' }}>¥{item.price}</p>
                   <button className="btn-outline" style={{ width: '100%' }} onClick={() => alert('分享链接已复制')}>分享</button>
+                  <button className="btn-primary" style={{ width: '100%', marginTop: '0.5rem' }} onClick={() => openBuyDialog(item)}>Buy</button>
                 </div>
               )) : (
                 <p>暂无物品，快去上传一个吧！</p>
@@ -586,6 +640,7 @@ function App() {
           <form key="register" className="fade-in" onSubmit={handleRegister}>
             <h2>加入 OldNewHub</h2>
             <input placeholder="用户名" required onChange={e => setUsername(e.target.value)} />
+            <input type="email" placeholder="邮箱" required onChange={e => setEmail(e.target.value)} />
             <input type="password" placeholder="密码" required onChange={e => setPassword(e.target.value)} />
             <button className="btn-primary" style={{ width: '100%' }} type="submit">注册</button>
             <button className="back-btn" type="button" onClick={() => setView('home')}>返回首页</button>
@@ -600,6 +655,7 @@ function App() {
             <h2>发布闲置</h2>
             <input name="title" placeholder="物品名称" required />
             <input name="price" type="number" placeholder="期望价格 (¥)" required />
+            <input name="tradeAddress" placeholder="线下交易地址（如：图书馆门口、宿舍楼下）" required />
             <select name="category" required style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '1rem' }} defaultValue="">
               <option value="" disabled>选择分类</option>
               <option value="1">图书</option>
@@ -674,6 +730,9 @@ function App() {
                       </div>
                       <h3 className="audit-title">{pendingItems[currentPage].title}</h3>
                       <p className="audit-price">¥{pendingItems[currentPage].price}</p>
+                      <p style={{ color: '#475569', fontWeight: '600', marginBottom: '1rem' }}>
+                        交易地址：{pendingItems[currentPage].tradeAddress || '未填写'}
+                      </p>
                       <div className="audit-description-box">
                         <p>{pendingItems[currentPage].description || '无描述'}</p>
                       </div>
@@ -710,6 +769,33 @@ function App() {
           </div>
         )}
       </div>
+
+      {buyDialogItem && (
+        <div className="modal-backdrop" onClick={() => closeBuyDialog()}>
+          <div className="buy-dialog" onClick={e => e.stopPropagation()}>
+            <h2>发送交易请求</h2>
+            <label>邮件标题</label>
+            <input
+              value={`我对${buyDialogItem.title}很感兴趣，想约你校园线下交易`}
+              readOnly
+            />
+            <label>邮件正文</label>
+            <textarea
+              rows="6"
+              value={buyMessage}
+              onChange={e => setBuyMessage(e.target.value)}
+              placeholder="填写你想发送给卖家的具体内容"
+              required
+            />
+            <div className="dialog-actions">
+              <button className="btn-outline" type="button" onClick={() => closeBuyDialog()} disabled={isSendingBuyRequest}>取消</button>
+              <button className="btn-primary" type="button" onClick={sendBuyRequest} disabled={isSendingBuyRequest}>
+                {isSendingBuyRequest ? '发送中...' : '发送'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Section 4: Footer */}
       <footer>

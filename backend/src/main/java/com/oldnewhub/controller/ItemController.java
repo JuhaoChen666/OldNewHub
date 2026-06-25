@@ -68,6 +68,18 @@ public class ItemController {
         }
     }
 
+    @PostMapping("/{id}/buy-request")
+    public ResponseEntity<?> sendBuyRequest(@PathVariable Long id,
+                                            @RequestBody Map<String, String> body,
+                                            Authentication auth) {
+        try {
+            itemService.sendBuyRequest(id, body.get("message"), auth.getName());
+            return ResponseEntity.ok(Map.of("message", "Buy request sent"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     // Admin endpoints
     @GetMapping("/admin/all")
     public List<Item> adminListAll() {

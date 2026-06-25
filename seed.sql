@@ -35,6 +35,7 @@ CREATE TABLE items (
     price DECIMAL(10, 2) NOT NULL,
     status ENUM('PENDING', 'APPROVED', 'SOLD', 'REMOVED') DEFAULT 'PENDING',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    trade_address VARCHAR(255) NOT NULL,
     category_id BIGINT,
     user_id BIGINT,
     price_change_reason TEXT,
@@ -80,11 +81,11 @@ INSERT INTO users (username, password, email, role) VALUES
 INSERT INTO categories (name) VALUES
 ('图书'), ('电子产品'), ('生活用品'), ('运动器材'), ('其它');
 
-INSERT INTO items (title, description, price, status, category_id, user_id) VALUES
-('Java编程思想', '经典Java教程，9成新', 45.00, 'APPROVED', 1, 2),
-('二手MacBook Pro', '2021款，16G内存，成色极好', 6500.00, 'PENDING', 2, 3),
-('校园单车', '毕业出，带锁和充气筒', 120.00, 'PENDING', 3, 2),
-('雅思真题', '一套雅思真题，有笔记', 30.00, 'PENDING', 1, 3);
+INSERT INTO items (title, description, price, status, trade_address, category_id, user_id) VALUES
+('Java编程思想', '经典Java教程，9成新', 45.00, 'APPROVED', '图书馆一楼大厅', 1, 2),
+('二手MacBook Pro', '2021款，16G内存，成色极好', 6500.00, 'PENDING', '教学楼 A 座门口', 2, 3),
+('校园单车', '毕业出，带锁和充气筒', 120.00, 'PENDING', '东门自行车棚', 3, 2),
+('雅思真题', '一套雅思真题，有笔记', 30.00, 'PENDING', '宿舍 3 号楼下', 1, 3);
 
 INSERT INTO announcements (title, content, type) VALUES
 ('欢迎来到 OldNewHub', '我们致力于打造最安全的校园二手交易平台。', 'NOTICE'),
